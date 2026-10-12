@@ -96,6 +96,18 @@ JSON body:
 
 On success, returns HTTP `200`, a success message, the user's ID, username, and email, and sets a `token` cookie. Missing fields or invalid credentials return HTTP `400`.
 
+## Postman API Tests
+
+The registration and login endpoints have been tested with Postman.
+
+### Register
+
+![Postman test for user registration](docs/img/Register%20Postman.png)
+
+### Login
+
+![Postman test for user login](docs/img/Login%20postman.png)
+
 ## Logout and Token Revocation
 
 There is no logout endpoint yet. Clearing a cookie in the browser removes it from that browser, but it does not invalidate a copied JWT; that token can remain usable until it expires. Server-side revocation requires the backend to reject revoked tokens, for example through a token denylist or a server-side session/version check. The client should also clear its cookie when logging out. This project has not implemented those steps yet.
