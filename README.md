@@ -9,8 +9,10 @@ CareerPilot will be a full-stack, generative AI-powered job preparation applicat
 - User schema includes a unique username, unique email, and password.
 - Registration checks required fields and existing users, hashes passwords with bcrypt, creates a user, and issues a JWT in a cookie.
 - Login checks credentials, compares the password hash, and issues a JWT in a cookie.
-- The register and login APIs have been tested with Postman.
-- Logout and server-side token revocation are not implemented yet.
+- Logout clears the token cookie and stores the token in a MongoDB blacklist.
+- Authentication middleware checks the blacklist, verifies the JWT, and attaches its decoded payload to `req.user` for protected routes.
+- The `GET /api/auth/getme` endpoint uses that payload to fetch and return the logged-in user's profile.
+- Register, login, logout, and get-me flows have been tested with Postman.
 
 The current codebase is an in-progress backend foundation; the full application, frontend, and AI-powered resume and interview preparation features are still under development.
 
@@ -31,7 +33,7 @@ The current codebase is an in-progress backend foundation; the full application,
 - Generative AI: Gemini API
 - PDF generation: Puppeteer
 
-The React frontend, Gemini integration, Puppeteer-based PDF generation, and token-blacklisting logout flow are planned and are not implemented in the current codebase yet.
+The React frontend, Gemini integration, and Puppeteer-based PDF generation are planned and are not implemented in the current codebase yet. MongoDB currently stores blacklisted tokens; Redis could be considered later if blacklist lookup throughput becomes a bottleneck.
 
 ## Getting Started
 
@@ -96,9 +98,9 @@ JSON body:
 
 On success, returns HTTP `200`, a success message, the user's ID, username, and email, and sets a `token` cookie. Missing fields or invalid credentials return HTTP `400`.
 
-## Postman API Tests
+## Today's Work (October 19, 2026)
 
-The registration and login endpoints have been tested with Postman.
+The authentication endpoints have been tested with Postman.
 
 ### Register
 
@@ -108,13 +110,26 @@ The registration and login endpoints have been tested with Postman.
 
 ![Postman test for user login](docs/img/Login%20postman.png)
 
-## Logout and Token Revocation
+### Get Me: Authenticated Profile
 
-There is no logout endpoint yet. Clearing a cookie in the browser removes it from that browser, but it does not invalidate a copied JWT; that token can remain usable until it expires. Server-side revocation requires the backend to reject revoked tokens, for example through a token denylist or a server-side session/version check. The client should also clear its cookie when logging out. This project has not implemented those steps yet.
+`GET /api/auth/getme` is a protected route. The authentication middleware reads the `token` cookie, rejects blacklisted or invalid tokens, verifies the JWT, and assigns its decoded payload to `req.user`. The controller then looks up the full user record and returns the user's ID, username, and email.
+
+![Get current user with a valid token](docs/img/getme%20with%20valid%20token.png)
+
+If the token has been blacklisted, the middleware rejects the request with HTTP `401`.
+
+![Get current user with a blacklisted token](docs/img/getme%20with%20blacklist%20cookie%20token%20.png)
+
+### Logout and Token Revocation
+
+`GET /api/auth/logout` stores the cookie token in the MongoDB blacklist (when a token is present), clears the `token` cookie, and returns a success message. Protected routes reject tokens found in the blacklist, so clearing the cookie is paired with server-side revocation.
+
+![Postman test for successful logout](docs/img/Logout.png)
+The current blacklist is stored in MongoDB. Redux is client-side application state and is not an appropriate trusted store for server-side token revocation. If higher blacklist lookup throughput is needed, Redis is a possible server-side alternative.
 
 ## Learning Context
 
-The project is being developed while following lessons from [Sheryians Coding School](https://www.youtube.com/@sheryians), taught by Ankur Prajapati. One key takeaway so far is understanding the difference between clearing a browser cookie and invalidating a token on the server.
+This project is a hands-on opportunity to strengthen backend development skills, including REST API design, authentication middleware, JWT validation, and server-side token revocation. It also explores how to test authentication flows and distinguish between clearing a client cookie and invalidating a token on the server.
 
 ## Project Structure
 
@@ -126,7 +141,10 @@ src/
     database.js
   controllers/
     auth.controller.js
+  middleware/
+    auth.middleware.js
   models/
+    blacklist.model.js
     user.model.js
   routes/
     auth.route.js
@@ -134,9 +152,7 @@ src/
 
 ## Next Steps
 
-- Implement logout with server-side token/session invalidation.
-- Add authentication middleware for protected routes.
+- Add automated tests and validate authentication edge cases, including missing tokens and blacklist lookup failures.
 - Set appropriate cookie security options, including `httpOnly`, `secure` in production, and a deliberate `sameSite` policy.
-- Add automated tests and validate edge cases.
 - Build the frontend for the full-stack application.
 - Add AI-powered resume optimization and interview preparation features.
